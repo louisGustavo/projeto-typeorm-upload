@@ -21,17 +21,36 @@ class CreateTransactionService {
   }:Request): Promise<Transaction> {
 
     const transactionRepository = getCustomRepository(TransactionsRepository);
+    const categoryRepository = getRepository(Category);
+
+    const { total } = await transactionRepository.getBalance();
+
+    if ((type === 'outcome') && (total - value < 0)) {
+      throw new AppError('Outcome transaction without a valid balance', 400);
+    }
+
+    let transactionCategory = await categoryRepository.findOne({
+      where: { title: category }
+    });
+
+    if (!transactionCategory) {
+      transactionCategory = categoryRepository.create({
+        title: category
+      });
+
+      await categoryRepository.save(transactionCategory);
+    }
 
     const transaction = transactionRepository.create({
       title,
       value,
-      type
+      type,
+      category: transactionCategory,
     });
 
     await transactionRepository.save(transaction);
 
     return transaction;
-
   }
 }
 
